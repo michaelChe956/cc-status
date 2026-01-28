@@ -1,7 +1,23 @@
 """cc-statusline: Claude Code 状态栏功能模块"""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Michael Che"
 __license__ = "Apache-2.0"
 
-__all__ = ["__version__", "__author__", "__license__"]
+from cc_statusline.engine import DisplayMode, EngineConfig, StatuslineEngine
+from cc_statusline.modules import BaseModule, ModuleOutput, ModuleStatus
+from cc_statusline.theme import get_theme_names, theme_loader
+
+__all__ = [
+    "__version__",
+    "__author__",
+    "__license__",
+    "StatuslineEngine",
+    "EngineConfig",
+    "DisplayMode",
+    "BaseModule",
+    "ModuleOutput",
+    "ModuleStatus",
+    "theme_loader",
+    "get_theme_names",
+]

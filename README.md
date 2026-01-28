@@ -19,7 +19,32 @@ Claude Code 状态栏功能模块 - 为 Claude Code 提供高效的状态栏显�
 
 ## 📦 安装
 
-### 从源码安装（开发版本）
+### 方法 1: 一键安装（推荐）
+
+使用 uvx 快速安装并配置：
+
+```bash
+# 一键安装到 Claude Code
+uvx cc-statusline install
+
+# 重启 Claude Code 即可看到状态栏
+claude
+```
+
+### 方法 2: 从 PyPI 安装（尚未发布）
+
+```bash
+# 安装包
+pip install cc-statusline
+
+# 安装到 Claude Code
+cc-statusline install
+
+# 重启 Claude Code
+claude
+```
+
+### 方法 3: 从源码安装（开发版本）
 
 ```bash
 # 克隆仓库
@@ -33,17 +58,33 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv venv
 source .venv/bin/activate  # macOS/Linux
 uv pip install -e ".[dev]"
-```
 
-### 从 PyPI 安装（尚未发布）
+# 安装到 Claude Code
+python -m cc_statusline install
 
-```bash
-pip install cc-statusline
+# 重启 Claude Code
+claude
 ```
 
 ## 🚀 快速开始
 
-### 基础用法
+### 一键安装方式
+
+```bash
+# 安装并自动配置
+uvx cc-statusline install
+
+# 自定义主题和刷新间隔
+uvx cc-statusline install --theme modern --interval 5000
+
+# 验证配置
+uvx cc-statusline verify
+
+# 卸载
+uvx cc-statusline uninstall
+```
+
+### 命令行用法
 
 ```bash
 # 运行 CLI

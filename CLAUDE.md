@@ -14,6 +14,300 @@
 - ❌ 严禁使用英文进行交流和解释
 - ⚠️ 这是强制性规则，无任何例外情况
 
+## 🔴 文档存储强制规则 (DOCUMENT STORAGE RULE)
+
+**所有文档必须存放在 `.claude` 目录下**
+
+### 目录结构
+
+```
+.claude/
+├── docs/           # 需求文档
+├── designs/        # 方案设计文档
+├── readmes/        # README 相关文档
+├── modao/          # 页面原型图片（墨刀等工具导出）
+├── model/          # 数据库表模型设计
+├── architecture/   # 系统架构分析文档
+├── notes/          # 开发笔记和临时记录
+├── analysis/       # 代码分析和调研报告
+└── logs/           # 开发日志和问题追踪
+```
+
+### 跨平台路径说明
+
+| 系统 | 项目根目录下的 .claude 路径 |
+|------|---------------------------|
+| macOS/Linux | `./. claude/` 或 `$PROJECT_ROOT/.claude/` |
+| Windows | `.\.claude\` 或 `%PROJECT_ROOT%\.claude\` |
+
+### 文档分类规则
+
+| 文档类型 | 存放目录 | 示例 |
+|---------|---------|------|
+| 产品需求文档 (PRD) | `.claude/docs/` | `prd_v1.0.md` |
+| 功能需求说明 | `.claude/docs/` | `feature_auth.md` |
+| 技术方案设计 | `.claude/designs/` | `design_api.md` |
+| 架构设计图 | `.claude/designs/` | `arch_diagram.png` |
+| 项目 README | `.claude/readmes/` | `readme_dev.md` |
+| UI 原型截图 | `.claude/modao/` | `page_login.png` |
+| 数据库 ER 图 | `.claude/model/` | `er_diagram.md` |
+| 表结构定义 | `.claude/model/` | `schema_user.sql` |
+| 架构分析报告 | `.claude/architecture/` | `analysis_microservice.md` |
+| 开发笔记 | `.claude/notes/` | `note_2024_01.md` |
+| 代码调研报告 | `.claude/analysis/` | `research_lib.md` |
+| 问题追踪日志 | `.claude/logs/` | `issue_tracker.md` |
+
+### 强制执行
+
+- ✅ 所有项目相关文档必须放在 `.claude/` 目录下
+- ✅ 按照上述分类存放到对应子目录
+- ✅ 文件命名使用小写字母、下划线和数字
+- ❌ 禁止在项目根目录散落文档文件
+- ❌ 禁止在 `src/` 或 `tests/` 目录下存放非代码文档
+- ⚠️ 此规则适用于所有由 Claude 创建或管理的文档
+
+## 🔴 Python 包管理强制规则 (PYTHON PACKAGE RULE)
+
+**必须使用 uv 作为 Python 包管理工具**
+
+### 为什么选择 uv？
+
+- ⚡ **极速**: 比 pip 快 10-100 倍的依赖解析和安装速度
+- 🔒 **可靠**: 确定性的依赖锁定，避免环境不一致
+- 🔄 **兼容**: 与 pip 命令完全兼容，学习成本低
+- 📦 **现代**: Rust 编写，现代化的依赖管理体验
+
+### 强制命令规范
+
+| 操作 | ✅ 正确命令 | ❌ 禁止命令 |
+|-----|-----------|-----------|
+| 创建虚拟环境 | `uv venv` | `python -m venv` |
+| 安装依赖 | `uv pip install` | `pip install` |
+| 安装项目 | `uv pip install -e .` | `pip install -e .` |
+| 安装开发依赖 | `uv pip install -e ".[dev]"` | `pip install -e ".[dev]"` |
+| 更新依赖 | `uv pip install --upgrade` | `pip install --upgrade` |
+| 卸载包 | `uv pip uninstall` | `pip uninstall` |
+| 查看已安装 | `uv pip list` | `pip list` |
+| 导出依赖 | `uv pip freeze` | `pip freeze` |
+
+### 环境初始化标准流程
+
+```bash
+# 1. 安装 uv（如未安装）
+curl -LsSf https://astral.sh/uv/install.sh | sh  # macOS/Linux
+# 或
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows
+
+# 2. 创建虚拟环境
+uv venv
+
+# 3. 激活虚拟环境
+source .venv/bin/activate  # macOS/Linux
+.venv\Scripts\activate     # Windows
+
+# 4. 安装项目依赖
+uv pip install -e ".[dev]"
+```
+
+### 强制执行
+
+- ✅ 所有 Python 依赖操作必须使用 `uv` 命令
+- ✅ 项目文档中的安装说明必须使用 `uv` 命令
+- ✅ CI/CD 脚本必须使用 `uv` 进行依赖安装
+- ❌ 禁止直接使用 `pip` 命令
+- ❌ 禁止使用 `python -m venv` 创建虚拟环境
+- ❌ 禁止使用 `poetry`、`pipenv` 等其他包管理工具
+- ⚠️ 此规则无任何例外情况
+
+## 🔴 时间获取强制规则 (TIME RETRIEVAL RULE)
+
+**需要时间信息时，必须使用 Time MCP 服务获取**
+
+### 为什么强制使用 Time MCP？
+
+- 🎯 **准确性**: 获取实时、准确的当前时间
+- 🌍 **时区支持**: 正确处理不同时区的时间转换
+- 🔄 **一致性**: 避免使用过期或假设的时间信息
+- ⚠️ **避免幻觉**: 防止 AI 模型"猜测"当前时间
+
+### 可用的 Time MCP 工具
+
+| 工具 | 用途 | 示例 |
+|-----|------|------|
+| `mcp__time__get_current_time` | 获取指定时区的当前时间 | 获取北京时间 |
+| `mcp__time__convert_time` | 时区之间的时间转换 | 北京时间转纽约时间 |
+
+### 使用规范
+
+```
+# 获取当前时间（默认使用 Asia/Shanghai）
+mcp__time__get_current_time(timezone="Asia/Shanghai")
+
+# 获取其他时区时间
+mcp__time__get_current_time(timezone="America/New_York")
+mcp__time__get_current_time(timezone="Europe/London")
+
+# 时区转换
+mcp__time__convert_time(
+    source_timezone="Asia/Shanghai",
+    time="14:30",
+    target_timezone="America/New_York"
+)
+```
+
+### 常用时区标识
+
+| 地区 | IANA 时区标识 |
+|-----|--------------|
+| 中国（北京/上海） | `Asia/Shanghai` |
+| 日本（东京） | `Asia/Tokyo` |
+| 美国东部 | `America/New_York` |
+| 美国西部 | `America/Los_Angeles` |
+| 英国（伦敦） | `Europe/London` |
+| 德国（柏林） | `Europe/Berlin` |
+
+### 强制执行
+
+- ✅ 任何需要当前日期/时间的场景必须调用 Time MCP
+- ✅ 涉及时区转换必须使用 `mcp__time__convert_time`
+- ✅ 默认时区使用 `Asia/Shanghai`（中国用户）
+- ❌ 禁止假设或"猜测"当前时间
+- ❌ 禁止使用知识截止日期作为当前时间
+- ❌ 禁止硬编码时间值
+- ⚠️ 此规则无任何例外情况
+
+## 🔴 代码检索强制规则 (CODE SEARCH RULE)
+
+**代码检索时，必须优先使用 CCLSP MCP 服务**
+
+### 为什么优先使用 CCLSP？
+
+- 🎯 **精准性**: 基于 LSP 协议，提供语义级别的代码理解
+- 🔍 **智能检索**: 支持符号定义、引用、实现等高级查询
+- ⚡ **高效性**: 直接利用语言服务器的索引能力
+- 🏗️ **结构化**: 返回结构化的代码信息，便于分析
+
+### CCLSP 可用工具
+
+| 工具 | 用途 | 优先级 |
+|-----|------|-------|
+| `mcp__cclsp__find_definition` | 查找符号定义 | 🥇 最高 |
+| `mcp__cclsp__find_references` | 查找符号引用 | 🥇 最高 |
+| `mcp__cclsp__find_workspace_symbols` | 工作区符号搜索 | 🥇 最高 |
+| `mcp__cclsp__find_implementation` | 查找接口实现 | 🥇 最高 |
+| `mcp__cclsp__get_hover` | 获取符号悬停信息 | 🥇 最高 |
+| `mcp__cclsp__get_diagnostics` | 获取诊断信息 | 🥇 最高 |
+| `mcp__cclsp__get_incoming_calls` | 查找调用者 | 🥇 最高 |
+| `mcp__cclsp__get_outgoing_calls` | 查找被调用函数 | 🥇 最高 |
+| `mcp__cclsp__rename_symbol` | 重命名符号 | 🥇 最高 |
+
+### 检索优先级顺序
+
+```
+1️⃣ CCLSP MCP（最高优先级）
+   ↓ 检索失败或不适用
+2️⃣ Serena MCP（语义代码理解）
+   ↓ 检索失败或不适用
+3️⃣ Grep / Glob（文本模式匹配）
+   ↓ 检索失败或不适用
+4️⃣ Task Agent（复杂探索任务）
+```
+
+### 使用场景对照
+
+| 场景 | 首选工具 | 备选工具 |
+|-----|---------|---------|
+| 查找函数/类定义 | `mcp__cclsp__find_definition` | `mcp__serena__find_symbol` |
+| 查找符号引用 | `mcp__cclsp__find_references` | `mcp__serena__find_referencing_symbols` |
+| 搜索工作区符号 | `mcp__cclsp__find_workspace_symbols` | `mcp__serena__search_for_pattern` |
+| 查找接口实现 | `mcp__cclsp__find_implementation` | `mcp__serena__find_symbol` |
+| 获取类型信息 | `mcp__cclsp__get_hover` | `mcp__serena__find_symbol` (include_info) |
+| 查看调用关系 | `mcp__cclsp__get_incoming_calls` | `mcp__serena__find_referencing_symbols` |
+| 文本模式搜索 | - | `Grep` / `mcp__serena__search_for_pattern` |
+
+### 强制执行
+
+- ✅ 代码检索必须首先尝试 CCLSP MCP 工具
+- ✅ CCLSP 失败后，按优先级顺序尝试其他工具
+- ✅ 记录检索路径，说明为何使用备选工具
+- ❌ 禁止跳过 CCLSP 直接使用其他检索工具
+- ❌ 禁止在 CCLSP 可用时使用低效的文本搜索
+- ⚠️ 仅当 CCLSP 明确不支持该语言或返回空结果时，才可使用备选工具
+
+## 🔴 文档命名强制规则 (DOCUMENT NAMING RULE)
+
+**所有文档必须遵循统一命名规范**
+
+### 命名格式标准
+
+| 文档类型 | 命名格式 | 说明 |
+|---------|---------|------|
+| **标准文档** | `YYYY-MM-DD_文档类型_文档名称_v版本号.扩展名` | 通用格式 |
+| **计划文档** | `YYYY-MM-DD_计划文档_计划类型_具体内容_v版本号.md` | Plan 专用 |
+| **临时笔记** | `YYYY-MM-DD_简短描述.md` | 简化格式 |
+
+### 命名示例
+
+```
+# 标准文档示例
+2025-01-28_技术方案_用户认证_v1.0.md
+2025-01-28_需求文档_订单管理_v2.1.md
+2025-01-28_架构设计_微服务拆分_v1.0.md
+2025-01-28_调研报告_前端框架选型_v1.0.md
+
+# 计划文档示例
+2025-01-28_计划文档_项目开发_用户认证模块_v1.0.md
+2025-01-28_计划文档_迭代计划_Sprint3_v1.0.md
+2025-01-28_计划文档_发布计划_v2.0上线_v1.0.md
+
+# 临时笔记示例
+2025-01-28_会议记录.md
+2025-01-28_问题排查.md
+2025-01-28_想法草稿.md
+```
+
+### 命名组成说明
+
+| 组成部分 | 格式要求 | 示例 |
+|---------|---------|------|
+| 日期 | `YYYY-MM-DD` | `2025-01-28` |
+| 文档类型 | 中文，2-4字 | `技术方案`、`需求文档`、`架构设计` |
+| 文档名称 | 中文，简明扼要 | `用户认证`、`订单管理` |
+| 版本号 | `v主版本.次版本` | `v1.0`、`v2.1` |
+| 扩展名 | 小写 | `.md`、`.png`、`.sql` |
+
+### 常用文档类型
+
+| 类型标识 | 适用场景 | 存放目录 |
+|---------|---------|---------|
+| `需求文档` | PRD、功能需求 | `.claude/docs/` |
+| `技术方案` | 设计方案、实现方案 | `.claude/designs/` |
+| `架构设计` | 系统架构、模块架构 | `.claude/architecture/` |
+| `计划文档` | 开发计划、迭代计划 | `.claude/docs/` |
+| `调研报告` | 技术调研、竞品分析 | `.claude/analysis/` |
+| `数据模型` | ER图、表结构 | `.claude/model/` |
+| `开发笔记` | 临时记录、备忘 | `.claude/notes/` |
+| `问题日志` | Bug追踪、问题记录 | `.claude/logs/` |
+
+### 版本号规则
+
+| 变更类型 | 版本变化 | 示例 |
+|---------|---------|------|
+| 重大修改/重写 | 主版本号 +1 | `v1.0` → `v2.0` |
+| 内容更新/补充 | 次版本号 +1 | `v1.0` → `v1.1` |
+| 初始版本 | 从 `v1.0` 开始 | `v1.0` |
+
+### 强制执行
+
+- ✅ 所有新建文档必须遵循命名规范
+- ✅ 日期必须使用 Time MCP 获取当前真实日期
+- ✅ 版本号必须从 `v1.0` 开始，按规则递增
+- ✅ 文档类型必须使用中文标识
+- ❌ 禁止使用随意命名（如 `doc1.md`、`新建文档.md`）
+- ❌ 禁止省略日期前缀
+- ❌ 禁止使用英文文档类型标识
+- ⚠️ 此规则适用于 `.claude/` 目录下的所有文档
+
 ## 项目概述
 
 **cc-statusline** - Claude Code 状态栏功能相关的仓库
