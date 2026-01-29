@@ -54,7 +54,9 @@ class MCPStatusModule(BaseModule):
 
     def initialize(self) -> None:
         """初始化模块。"""
-        self._refresh_servers()
+        # 移除立即刷新，改为延迟到第一次 get_output() 时
+        # self._refresh_servers()  # 延迟初始化，避免导入时触发 MCP 命令
+        pass
 
     def refresh(self) -> None:
         """刷新 MCP 服务器状态。"""
@@ -96,7 +98,7 @@ class MCPStatusModule(BaseModule):
                 ["claude", "mcp", "list"],
                 capture_output=True,
                 text=True,
-                timeout=5,
+                timeout=10,  # 增加超时时间到10秒
             )
 
             if result.returncode == 0:
@@ -120,23 +122,25 @@ class MCPStatusModule(BaseModule):
 
         for line in lines:
             line = line.strip()
-            if not line:
+
+            # 跳过空行和非服务器行
+            if not line or line.startswith("Checking"):
                 continue
 
-            # 解析格式: "server-name (running)" 或 "server-name"
-            parts = line.split()
-            if not parts:
-                continue
+            # 新格式: "server-name: command - ✓ Connected"
+            if " - ✓ Connected" in line:
+                # 提取服务器名称（冒号前的部分）
+                parts = line.split(":", 1)
+                if len(parts) >= 1:
+                    name = parts[0].strip()
+                    status = "running"  # ✓ Connected 表示正在运行
 
-            name = parts[0]
-            status = "running" if len(parts) > 1 and "(running)" in line else "unknown"
-
-            servers.append(
-                MCPServerInfo(
-                    name=name,
-                    status=status,
-                )
-            )
+                    servers.append(
+                        MCPServerInfo(
+                            name=name,
+                            status=status,
+                        )
+                    )
 
         return servers
 
@@ -205,6 +209,14 @@ class MCPStatusModule(BaseModule):
         Returns:
             模块输出
         """
+        # 延迟初始化：只在第一次获取输出时刷新
+        if not self._servers and self._last_update == 0.0:
+            self._refresh_servers()
+
+        # 检查缓存是否过期
+        if self._servers and _get_current_time() - self._last_update > self._cache_timeout:
+            self._refresh_servers()
+
         if not self._servers:
             return ModuleOutput(
                 text="无 MCP 服务器",

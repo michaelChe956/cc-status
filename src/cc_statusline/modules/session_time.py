@@ -3,6 +3,7 @@
 跟踪和显示当前会话的使用时间。
 """
 
+import glob
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -22,15 +23,72 @@ class SessionTimeModule(BaseModule):
     显示 Claude Code 会话的运行时长。
     """
 
-    # 会话状态文件路径
-    STATE_FILE = os.path.expanduser("~/.claude/session_time.json")
-
     def __init__(self) -> None:
         self._start_time: Optional[datetime] = None
         self._last_elapsed: Optional[timedelta] = None
         self._paused: bool = False
         self._pause_start: Optional[datetime] = None
         self._format: str = "short"  # short: "2h 15m", long: "02:15:30"
+
+    def _get_state_file_path(self) -> str:
+        """获取当前会话专属的状态文件路径。
+
+        通过检测 Claude Code 的当前会话ID来确保：
+        1. 每个Claude Code窗口有独立的会话时间统计
+        2. 同一窗口的时间能够正确累积
+
+        Returns:
+            状态文件路径
+        """
+        import glob
+
+        # 尝试获取当前活跃的 Claude Code 会话ID
+        session_id = self._get_active_session_id()
+
+        if session_id:
+            # 使用会话ID作为状态文件名
+            return os.path.expanduser(f"~/.claude/session_time_{session_id}.json")
+        else:
+            # 降级方案：使用固定的状态文件
+            return os.path.expanduser("~/.claude/session_time.json")
+
+    def _get_active_session_id(self) -> Optional[str]:
+        """获取当前活跃的 Claude Code 会话ID。
+
+        Returns:
+            会话ID，如果无法获取则返回 None
+        """
+        try:
+            # 获取当前工作目录
+            cwd = os.getcwd()
+
+            # Claude Code 将工作目录中的斜杠替换为短横线
+            # 例如: /home/michael/workspace/github/cc-statusline
+            # 变为: -home-michael-workspace-github-cc-statusline
+            project_dir_name = "-" + cwd.replace("/", "-").lstrip("-")
+
+            # 构建项目会话目录路径
+            project_session_dir = os.path.expanduser(f"~/.claude/projects/{project_dir_name}")
+
+            if not os.path.exists(project_session_dir):
+                return None
+
+            # 查找最近修改的 .jsonl 会话文件
+            jsonl_files = glob.glob(os.path.join(project_session_dir, "*.jsonl"))
+
+            if not jsonl_files:
+                return None
+
+            # 按修改时间排序，获取最新的
+            latest_file = max(jsonl_files, key=os.path.getmtime)
+
+            # 提取会话ID（去掉 .jsonl 扩展名）
+            session_id = os.path.basename(latest_file).replace(".jsonl", "")
+
+            return session_id
+
+        except (OSError, IndexError):
+            return None
 
     @property
     def metadata(self) -> ModuleMetadata:
@@ -57,8 +115,9 @@ class SessionTimeModule(BaseModule):
         try:
             import json
 
-            if os.path.exists(self.STATE_FILE):
-                with open(self.STATE_FILE, encoding="utf-8") as f:
+            state_file = self._get_state_file_path()
+            if os.path.exists(state_file):
+                with open(state_file, encoding="utf-8") as f:
                     state = json.load(f)
 
                 start_str = state.get("start_time")
@@ -79,8 +138,9 @@ class SessionTimeModule(BaseModule):
                 "format": self._format,
             }
 
-            os.makedirs(os.path.dirname(self.STATE_FILE), exist_ok=True)
-            with open(self.STATE_FILE, "w", encoding="utf-8") as f:
+            state_file = self._get_state_file_path()
+            os.makedirs(os.path.dirname(state_file), exist_ok=True)
+            with open(state_file, "w", encoding="utf-8") as f:
                 json.dump(state, f)
         except (OSError, AttributeError):
             pass

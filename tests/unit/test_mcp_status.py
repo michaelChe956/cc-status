@@ -47,21 +47,22 @@ class TestMCPStatusModule:
     @patch("cc_statusline.modules.mcp_status.subprocess.run")
     def test_detect_servers_from_command(self, mock_run: MagicMock) -> None:
         """测试从命令检测服务器"""
-        # 模拟命令输出
+        # 模拟新的命令输出格式
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout="server1 (running)\nserver2\nserver3 (running)\n",
+            stdout="Checking MCP server health...\n"
+                    "server1: npx -y server1 - ✓ Connected\n"
+                    "server2: npx -y server2 - ✓ Connected\n"
+                    "server3: python server3.py - ✓ Connected\n",
         )
 
         module = MCPStatusModule()
-        module.initialize()
-
         servers = module._get_from_claude_command()
         assert len(servers) == 3
         assert servers[0].name == "server1"
         assert servers[0].status == "running"
         assert servers[1].name == "server2"
-        assert servers[1].status == "unknown"
+        assert servers[1].status == "running"
 
     @patch("cc_statusline.modules.mcp_status.subprocess.run")
     def test_detect_servers_command_fails(self, mock_run: MagicMock) -> None:
@@ -117,9 +118,7 @@ class TestMCPStatusModule:
         mock_run.side_effect = FileNotFoundError()
 
         module = MCPStatusModule()
-        module.initialize()
-
-        output = module.get_output()
+        output = module.get_output()  # 会尝试初始化但失败
         assert output.text == "无 MCP 服务器"
         assert output.icon == "🔌"
         assert output.color == "gray"
@@ -130,28 +129,33 @@ class TestMCPStatusModule:
         """测试全部服务器运行中的输出"""
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout="server1 (running)\nserver2 (running)\n",
+            stdout="Checking MCP server health...\n"
+                    "server1: npx -y server1 - ✓ Connected\n"
+                    "server2: npx -y server2 - ✓ Connected\n",
         )
 
         module = MCPStatusModule()
-        module.initialize()
-
-        output = module.get_output()
+        output = module.get_output()  # 延迟初始化
         assert output.text == "2/2 运行中"
         assert output.icon == "🟢"
         assert output.color == "green"
         assert output.status == ModuleStatus.SUCCESS
 
-    @patch("cc_statusline.modules.mcp_status.subprocess.run")
-    def test_get_output_partial_running(self, mock_run: MagicMock) -> None:
-        """测试部分服务器运行中的输出"""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="server1 (running)\nserver2\n",
-        )
+    @patch("cc_statusline.modules.mcp_status._get_current_time")
+    def test_get_output_partial_running(self, mock_time: MagicMock) -> None:
+        """测试部分服务器运行中的输出（通过手动设置）"""
+        # Mock 当前时间为接近 _last_update，避免缓存超时
+        mock_time.return_value = 125.0  # 只过了 2 秒，未超过 5 秒缓存
 
         module = MCPStatusModule()
-        module.initialize()
+
+        # 手动设置服务器状态（因为新格式所有连接的服务器都是running）
+        module._servers = {
+            "server1": MCPServerInfo(name="server1", status="running"),
+            "server2": MCPServerInfo(name="server2", status="unknown"),
+        }
+        # 设置非零时间戳避免延迟初始化
+        module._last_update = 123.0
 
         output = module.get_output()
         assert output.text == "1/2 运行中"
@@ -159,9 +163,12 @@ class TestMCPStatusModule:
         assert output.color == "yellow"
         assert output.status == ModuleStatus.WARNING
 
-    @patch("cc_statusline.modules.mcp_status.subprocess.run")
-    def test_get_output_with_errors(self, mock_run: MagicMock) -> None:
+    @patch("cc_statusline.modules.mcp_status._get_current_time")
+    def test_get_output_with_errors(self, mock_time: MagicMock) -> None:
         """测试有错误服务器的输出"""
+        # Mock 当前时间为接近 _last_update，避免缓存超时
+        mock_time.return_value = 125.0  # 只过了 2 秒，未超过 5 秒缓存
+
         module = MCPStatusModule()
 
         # 手动设置服务器状态以测试错误情况
@@ -169,6 +176,8 @@ class TestMCPStatusModule:
             "server1": MCPServerInfo(name="server1", status="running"),
             "server2": MCPServerInfo(name="server2", status="error"),
         }
+        # 设置非零时间戳避免延迟初始化
+        module._last_update = 123.0
 
         output = module.get_output()
         assert "错误" in output.text
@@ -181,11 +190,13 @@ class TestMCPStatusModule:
         """测试获取服务器详细信息"""
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout="server1 (running)\n",
+            stdout="Checking MCP server health...\n"
+                    "server1: npx -y server1 - ✓ Connected\n",
         )
 
         module = MCPStatusModule()
-        module.initialize()
+        # 调用 refresh 来初始化服务器列表
+        module.refresh()
 
         details = module.get_server_details()
         assert len(details) == 1
@@ -207,11 +218,12 @@ class TestMCPStatusModule:
         """测试清理资源"""
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout="server1 (running)\n",
+            stdout="Checking MCP server health...\n"
+                    "server1: npx -y server1 - ✓ Connected\n",
         )
 
         module = MCPStatusModule()
-        module.initialize()
+        module.refresh()  # 使用 refresh 初始化
         assert len(module._servers) > 0
 
         module.cleanup()
@@ -223,17 +235,20 @@ class TestMCPStatusModule:
         # 第一次调用返回 2 个服务器
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout="server1 (running)\nserver2 (running)\n",
+            stdout="Checking MCP server health...\n"
+                    "server1: npx -y server1 - ✓ Connected\n"
+                    "server2: npx -y server2 - ✓ Connected\n",
         )
 
         module = MCPStatusModule()
-        module.initialize()
+        module.refresh()  # 使用 refresh 初始化
         assert len(module._servers) == 2
 
         # 第二次调用返回 1 个服务器
         mock_run.return_value = MagicMock(
             returncode=0,
-            stdout="server1 (running)\n",
+            stdout="Checking MCP server health...\n"
+                    "server1: npx -y server1 - ✓ Connected\n",
         )
 
         module.refresh()

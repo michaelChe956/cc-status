@@ -1,182 +1,136 @@
-# cc-statusline v0.2.0 技术实施检查清单
+# cc-statusline 下次会话优先事项
 
-## 📋 功能完成状态
-
-### ✅ 功能一：PyPI 发布准备
-- [x] 版本号统一 (0.2.0)
-- [x] pyproject.toml 元数据完善
-- [x] 创建 scripts/publish.sh
-- [x] GitHub Actions CI/CD
-- [x] 本地构建验证通过
-- [ ] **待执行**: 发布到 TestPyPI
-- [ ] **待执行**: 正式发布到 PyPI
-
-### ✅ 功能二：增强验证功能
-- [x] verify() 方法扩展 (verbose, test_command)
-- [x] health_check() 方法
-- [x] test_command() 方法
-- [x] CLI 参数: --verbose, --test, --health
-- [x] 测试用例: test_verify_*
-
-### ✅ 功能三：配置迁移功能
-- [x] export_config() 方法
-- [x] import_config() 方法
-- [x] get_config_version() 方法
-- [x] CLI 子命令: export, import
-- [x] YAML 格式支持
-- [x] 配置备份机制
-
-### ✅ 功能四：交互式安装
-- [x] InteractiveInstaller 类
-- [x] 主题选择（Tab 补全）
-- [x] 刷新间隔配置（输入验证）
-- [x] 确认安装流程
-- [x] CLI 参数: --interactive
-- [x] 主题预览功能
+**更新日期**: 2026-01-29
 
 ---
 
-## 🎯 下次会话优先事项
+## 🎯 高优先级任务
 
-### 1. PyPI 发布（优先级：🔴 最高）
-```bash
-# 步骤 1: TestPyPI 测试
-twine upload --repository testpypi dist/*
+### 1. 监控状态文件累积
+**问题**: 每个进程创建独立的 session_time_{pid}.json 文件
+**风险**: 可能导致大量临时文件累积
+**建议**: 
+- 实现定期清理机制
+- 考虑使用 /tmp 目录而非 ~/.claude
+- 添加自动清理脚本
 
-# 步骤 2: 验证安装
-uvx --index-url https://test.pypi.org/simple/ cc-statusline --version
+### 2. 观察MCP命令执行时间
+**问题**: 超时从5秒增加到10秒，可能还不够
+**建议**:
+- 在生产环境统计实际执行时间
+- 考虑使用异步执行
+- 添加更智能的超时策略
 
-# 步骤 3: 正式发布
-twine upload dist/*
+### 3. 验证多窗口隔离
+**建议**:
+- 打开10+个窗口测试
+- 验证每个窗口的时间独立增长
+- 确认关闭窗口后文件被清理
 
-# 步骤 4: 验证正式发布
-uvx cc-statusline install --interactive
+---
+
+## 🔧 代码优化建议
+
+### 1. 添加输出缓存
+```python
+# terminal_renderer.py
+if output != self._last_output:
+    print(f"\r{output}", end="", flush=True)
+    self._last_output = output
 ```
 
-### 2. 功能测试（优先级：🟡 中等）
-- [ ] 测试交互式安装完整流程
-- [ ] 测试配置导出/导入
-- [ ] 测试健康检查报告
-- [ ] 验证所有 CLI 命令
+### 2. 实现配置文件级别的会话隔离
+**当前**: 基于进程ID
+**改进**: 基于用户会话或窗口ID
+**优势**: 更符合用户预期，易于管理
 
-### 3. 文档完善（优先级：🟢 低）
-- [ ] 更新 README.md（添加 PyPI badge）
-- [ ] 创建 CHANGELOG.md
-- [ ] 添加贡献指南
-
----
-
-## 🔧 技术债务
-
-### 需要改进的地方
-1. **测试覆盖率**: 当前 23%，目标 >80%
-   - 增加 CLI 命令测试
-   - 增加交互式功能测试
-   - 增加引擎和模块测试
-
-2. **性能优化**: 
-   - 主题加载缓存
-   - 模块懒加载
-   - 调度器性能优化
-
-3. **错误处理**:
-   - 更友好的错误提示
-   - 详细的故障排查指导
-   - 日志系统集成
-
----
-
-## 📊 项目指标
-
-### 代码量
-- **总代码**: 8023+ 行
-- **新增文件**: 48 个
-- **核心模块**: 6 个
-
-### 质量指标
-- **格式化**: ✅ black 通过
-- **代码规范**: ✅ ruff 通过
-- **类型检查**: ✅ mypy 通过
-- **测试通过**: ✅ 19/19
-
-### 功能指标
-- **CLI 命令**: 7 个（install, uninstall, verify, export, import, --once, --list-*）
-- **验证选项**: 3 个（--verbose, --test, --health）
-- **交互步骤**: 3 步（主题→间隔→确认）
-- **配置格式**: YAML
-
----
-
-## 🚀 快速恢复命令
-
-```bash
-# 项目目录
-cd /Users/michaelche/Documents/git-folder/github-folder/cc-statusline
-
-# 激活环境
-source .venv/bin/activate
-
-# 查看状态
-git status
-git log -1
-
-# 运行测试
-pytest tests/ -v
-
-# 构建包
-python -m build
-
-# 检查构建
-twine check dist/*
+### 3. 添加MCP检测的fallback机制
+```python
+# 命令失败时，尝试从配置文件读取
+if not servers:
+    servers = self._get_from_config()
 ```
 
 ---
 
-## 📝 重要文件路径
+## 📚 文档更新
 
-### 核心代码
-- `src/cc_statusline/config/installer.py` - 配置安装器
-- `src/cc_statusline/config/interactive.py` - 交互式安装
-- `src/cc_statusline/cli/commands.py` - CLI 命令
+### 需要更新的文档
+1. **README.md**
+   - 添加多窗口时间隔离说明
+   - 更新故障排查部分
 
-### 配置文件
-- `pyproject.toml` - 项目配置
-- `.github/workflows/publish.yml` - CI/CD
+2. **CLAUDE.md**
+   - 记录延迟初始化的设计决策
+   - 添加进程隔离的最佳实践
 
-### 文档
-- `.claude/docs/2026-01-28_实施报告_四项功能增强_v1.0.md`
-- `.claude/docs/新功能使用指南.md`
-
-### 脚本
-- `scripts/publish.sh` - 发布脚本
+3. **CHANGELOG.md**
+   - 记录三项问题修复
+   - 说明破坏性变更（如果有）
 
 ---
 
-## ⚠️ 注意事项
+## 🧪 测试增强
 
-1. **API Token 安全**
-   - 不要提交到 Git
-   - 使用环境变量或 GitHub Secrets
-   - 定期更新 Token
+### 新增测试用例
+1. **多进程并发测试**
+   ```python
+   def test_concurrent_session_time():
+       # 同时创建多个进程
+       # 验证时间独立统计
+   ```
 
-2. **版本号管理**
-   - PyPI 版本号不可重复
-   - 发布前确认版本号正确
-   - 更新 CHANGELOG.md
+2. **MCP格式变化测试**
+   ```python
+   def test_mcp_format_compatibility():
+       # 测试多种输出格式
+       # 验证向后兼容性
+   ```
 
-3. **测试完整性**
-   - TestPyPI 必须先测试
-   - 验证所有功能可用
-   - 检查依赖完整性
+3. **超时处理测试**
+   ```python
+   def test_mcp_timeout_handling():
+       # Mock超时场景
+       # 验证优雅降级
+   ```
 
 ---
 
-## 🎉 完成的里程碑
+## 🚀 发布检查清单
 
-- ✅ v0.2.0 四项核心功能完成
-- ✅ 代码质量检查全部通过
-- ✅ Git 提交并推送 (5d253e1)
-- ✅ 本地构建成功
-- ⏳ 等待 PyPI 发布
+### 发布前
+- [ ] 所有测试通过
+- [ ] 手动验证三个问题已解决
+- [ ] 检查文件权限和路径
+- [ ] 验证多窗口场景
+- [ ] 更新版本号
+- [ ] 更新 CHANGELOG
 
-**项目状态**: 发布就绪 🚀
+### 发布后
+- [ ] 监控用户反馈
+- [ ] 观察性能指标
+- [ ] 收集新的bug报告
+- [ ] 准备下一个版本的规划
+
+---
+
+## 🔄 持续改进
+
+### 性能监控
+- 添加性能日志
+- 统计MCP命令执行时间
+- 监控状态文件大小和数量
+
+### 用户体验
+- 收集用户反馈
+- 分析使用模式
+- 优化常用场景
+
+### 代码质量
+- 定期代码审查
+- 重构复杂逻辑
+- 提高测试覆盖率
+
+---
+
+**下次会话从这里开始！**
