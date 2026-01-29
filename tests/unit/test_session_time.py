@@ -21,7 +21,7 @@ class TestSessionTimeModule:
 
         assert metadata.name == "session_time"
         assert metadata.description == "显示当前会话使用时间"
-        assert metadata.version == "1.0.0"
+        assert metadata.version == "1.1.0"
         assert metadata.author == "Claude Code"
         assert metadata.enabled is True
 
@@ -266,3 +266,128 @@ class TestSessionTimeModule:
         module.initialize()
         module.refresh()
         assert module._last_elapsed is not None
+
+    def test_set_context(self) -> None:
+        """测试设置上下文数据"""
+        module = SessionTimeModule()
+
+        # 模拟 Claude Code 传递的上下文
+        context = {
+            "hook_event_name": "Status",
+            "session_id": "abc123",
+            "cost": {
+                "total_cost_usd": 0.01234,
+                "total_duration_ms": 45000000,  # 12.5 小时（毫秒）
+                "total_api_duration_ms": 2300000,
+                "total_lines_added": 156,
+                "total_lines_removed": 23,
+            },
+            "model": {
+                "id": "claude-opus-4-1",
+                "display_name": "Opus",
+            },
+        }
+
+        module.set_context(context)
+
+        # 验证上下文被正确设置
+        assert module._context == context
+        assert module._total_duration_ms == 45000000
+
+    def test_set_context_empty(self) -> None:
+        """测试设置空上下文"""
+        module = SessionTimeModule()
+
+        module.set_context({})
+
+        assert module._context == {}
+        assert module._total_duration_ms is None
+
+    def test_calculate_elapsed_from_context(self) -> None:
+        """测试从上下文计算经过时间"""
+        module = SessionTimeModule()
+
+        # 设置上下文（12.5 小时 = 45000000 毫秒）
+        context = {
+            "cost": {
+                "total_duration_ms": 45000000,
+            },
+        }
+        module.set_context(context)
+
+        # 计算经过时间
+        elapsed = module._calculate_elapsed()
+
+        assert elapsed is not None
+        # 45000000 毫秒 = 12.5 小时 = 45000 秒
+        assert elapsed.total_seconds() == 45000
+        # 验证 timedelta 对象
+        assert elapsed == timedelta(hours=12, minutes=30)
+
+    def test_calculate_elapsed_fallback_to_local(self) -> None:
+        """测试回退到本地计时（无上下文）"""
+        module = SessionTimeModule()
+        module._start_time = datetime.now() - timedelta(hours=2)
+
+        elapsed = module._calculate_elapsed()
+
+        assert elapsed is not None
+        assert 7100 <= elapsed.total_seconds() <= 7300  # 约 2 小时
+
+    def test_calculate_elapsed_context_priority(self) -> None:
+        """测试上下文优先于本地计时"""
+        module = SessionTimeModule()
+
+        # 设置本地时间为 1 小时前
+        module._start_time = datetime.now() - timedelta(hours=1)
+
+        # 但上下文中有 5 小时
+        context = {
+            "cost": {
+                "total_duration_ms": 18000000,  # 5 小时（毫秒）
+            },
+        }
+        module.set_context(context)
+
+        elapsed = module._calculate_elapsed()
+
+        # 应该使用上下文中的时间（5 小时）
+        assert elapsed is not None
+        assert elapsed.total_seconds() == 18000  # 5 小时 = 18000 秒
+
+    def test_get_output_with_context(self) -> None:
+        """测试获取输出（使用上下文时间）"""
+        module = SessionTimeModule()
+
+        # 设置上下文（2.5 小时）
+        context = {
+            "cost": {
+                "total_duration_ms": 9000000,  # 2.5 小时 = 9000000 毫秒
+            },
+        }
+        module.set_context(context)
+
+        output = module.get_output()
+
+        # 2.5 小时应该显示为 "2h 30m"，颜色为绿色（>= 2h）
+        assert "2h" in output.text
+        assert "30m" in output.text
+        assert output.icon == "⏱️"
+        assert output.color == "green"
+        assert output.status == ModuleStatus.SUCCESS
+
+    def test_get_output_tooltip_with_context(self) -> None:
+        """测试 tooltip 显示（使用上下文时间）"""
+        module = SessionTimeModule()
+
+        context = {
+            "cost": {
+                "total_duration_ms": 7200000,  # 2 小时
+            },
+        }
+        module.set_context(context)
+
+        output = module.get_output()
+
+        # tooltip 应该显示 "会话时长: 2h 0m"
+        assert output.tooltip == "会话时长: 2h 0m"

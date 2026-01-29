@@ -57,6 +57,7 @@ class StatuslineEngine:
             "error": [],
         }
         self._current_theme: Optional[dict[str, Any]] = None
+        self._context: dict[str, Any] = {}  # Claude Code 传递的上下文数据
 
     @property
     def config(self) -> EngineConfig:
@@ -83,6 +84,28 @@ class StatuslineEngine:
                 self._config.display_mode = kwargs["display_mode"]
         if "refresh_interval" in kwargs:
             self._config.refresh_interval = max(kwargs["refresh_interval"], 0.1)
+
+    @property
+    def context(self) -> dict[str, Any]:
+        """获取上下文数据。"""
+        return self._context
+
+    def set_context(self, context: dict[str, Any]) -> None:
+        """设置上下文数据。
+
+        从 Claude Code statusLine hook 接收的 JSON 数据。
+
+        Args:
+            context: 包含 cost.total_duration_ms 等字段的字典
+        """
+        self._context = context
+        # 将上下文传递给所有模块
+        for module in self._modules:
+            if hasattr(module, "set_context"):
+                try:
+                    module.set_context(context)
+                except Exception:
+                    pass
 
     def load_theme(self, name: Optional[str] = None) -> dict[str, Any]:
         """加载主题。
@@ -150,6 +173,15 @@ class StatuslineEngine:
                 callback=self._refresh_module(module),
                 interval=interval,
             )
+
+        # 将上下文传递给所有模块
+        if self._context:
+            for module in self._modules:
+                if hasattr(module, "set_context"):
+                    try:
+                        module.set_context(self._context)
+                    except Exception:
+                        pass
 
     def _refresh_module(self, module: BaseModule) -> Callable[[], None]:
         """创建模块刷新回调。

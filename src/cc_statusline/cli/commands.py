@@ -443,6 +443,22 @@ def cmd_status(args: argparse.Namespace) -> None:
     # 创建引擎
     engine = StatuslineEngine(config)
 
+    # 尝试从 stdin 读取 Claude Code 传递的上下文数据
+    context: dict = {}
+    try:
+        # 检查 stdin 是否有数据（非交互模式）
+        import sys
+
+        if not sys.stdin.isatty():
+            stdin_data = sys.stdin.read()
+            if stdin_data.strip():
+                import json
+
+                context = json.loads(stdin_data)
+                engine.set_context(context)
+    except (json.JSONDecodeError, OSError):
+        pass
+
     if args.info:
         # 显示信息
         engine.initialize()

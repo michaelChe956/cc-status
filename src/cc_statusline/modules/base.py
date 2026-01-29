@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 class ModuleStatus(Enum):
@@ -133,6 +133,16 @@ class BaseModule(Protocol):
             float: 刷新间隔时间
         """
         return 1.0
+
+    def set_context(self, context: dict[str, Any]) -> None:
+        """设置上下文数据。
+
+        从 Claude Code statusLine hook 接收的 JSON 数据。
+
+        Args:
+            context: 包含 cost.total_duration_ms 等字段的字典
+        """
+        pass
 
 
 class ModuleError(Exception):

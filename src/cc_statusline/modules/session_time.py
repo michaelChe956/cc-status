@@ -1,12 +1,14 @@
 """会话时间模块。
 
 跟踪和显示当前会话的使用时间。
+优先从 Claude Code 传递的 total_duration_ms 获取时间，回退到本地计时。
 """
 
 import glob
 import os
+import sys
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from cc_statusline.modules.base import (
     BaseModule,
@@ -21,6 +23,7 @@ class SessionTimeModule(BaseModule):
     """会话时间模块。
 
     显示 Claude Code 会话的运行时长。
+    优先使用 Claude Code 传递的 total_duration_ms，回退到本地计时。
     """
 
     def __init__(self) -> None:
@@ -29,6 +32,8 @@ class SessionTimeModule(BaseModule):
         self._paused: bool = False
         self._pause_start: Optional[datetime] = None
         self._format: str = "short"  # short: "2h 15m", long: "02:15:30"
+        self._context: dict[str, Any] = {}  # Claude Code 传递的上下文
+        self._total_duration_ms: Optional[int] = None  # 来自 Claude Code 的总时长（毫秒）
 
     def _get_state_file_path(self) -> str:
         """获取当前会话专属的状态文件路径。
@@ -95,7 +100,7 @@ class SessionTimeModule(BaseModule):
         return ModuleMetadata(
             name="session_time",
             description="显示当前会话使用时间",
-            version="1.0.0",
+            version="1.1.0",
             author="Claude Code",
             enabled=True,
         )
@@ -105,6 +110,19 @@ class SessionTimeModule(BaseModule):
         self._load_state()
         if self._start_time is None:
             self._start_time = datetime.now()
+
+    def set_context(self, context: dict[str, Any]) -> None:
+        """设置上下文数据。
+
+        从 Claude Code statusLine hook 接收的 JSON 数据。
+
+        Args:
+            context: 包含 cost.total_duration_ms 等字段的字典
+        """
+        self._context = context
+        # 提取 total_duration_ms（毫秒）
+        cost_data = context.get("cost", {})
+        self._total_duration_ms = cost_data.get("total_duration_ms")
 
     def refresh(self) -> None:
         """刷新时间数据。"""
@@ -148,9 +166,18 @@ class SessionTimeModule(BaseModule):
     def _calculate_elapsed(self) -> Optional[timedelta]:
         """计算经过的时间。
 
+        优先使用 Claude Code 传递的 total_duration_ms，
+        回退到本地计时（从文件读取或实时计算）。
+
         Returns:
             经过的时间
         """
+        # 优先使用 Claude Code 传递的时间
+        if self._total_duration_ms is not None:
+            self._last_elapsed = timedelta(milliseconds=self._total_duration_ms)
+            return self._last_elapsed
+
+        # 回退到本地计时
         if self._start_time is None:
             return None
 
@@ -242,13 +269,22 @@ class SessionTimeModule(BaseModule):
             color = "blue"
             status = ModuleStatus.SUCCESS
 
-        start_time_str = self._start_time.strftime("%H:%M:%S") if self._start_time else "未知"
+        # 构建 tooltip
+        if self._total_duration_ms is not None:
+            # 来自 Claude Code 的时间
+            tooltip = f"会话时长: {formatted}"
+        elif self._start_time:
+            start_time_str = self._start_time.strftime("%H:%M:%S")
+            tooltip = f"会话开始于 {start_time_str}"
+        else:
+            tooltip = "未知"
+
         return ModuleOutput(
             text=formatted,
             icon="⏱️",
             color=color,
             status=status,
-            tooltip=f"会话开始于 {start_time_str}",
+            tooltip=tooltip,
         )
 
     def get_start_time(self) -> Optional[datetime]:
