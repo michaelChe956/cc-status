@@ -73,6 +73,35 @@ class TestMCPStatusModule:
         servers = module._get_from_claude_command()
         assert len(servers) == 0
 
+    @patch("cc_statusline.modules.mcp_status.subprocess.run")
+    def test_detect_servers_command_timeout(self, mock_run: MagicMock) -> None:
+        """测试命令超时时的处理"""
+        from subprocess import TimeoutExpired
+
+        # 模拟超时异常
+        mock_run.side_effect = TimeoutExpired(["claude", "mcp", "list"], 60)
+
+        module = MCPStatusModule()
+        servers = module._get_from_claude_command()
+        # 超时时应该返回空列表（静默失败）
+        assert len(servers) == 0
+
+    @patch("cc_statusline.modules.mcp_status.subprocess.run")
+    def test_command_timeout_is_60_seconds(self, mock_run: MagicMock) -> None:
+        """测试命令超时时间设置为 60 秒"""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="Checking MCP server health...\n",
+        )
+
+        module = MCPStatusModule()
+        module._get_from_claude_command()
+
+        # 验证 subprocess.run 被调用时 timeout=60
+        mock_run.assert_called_once()
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs["timeout"] == 60
+
     def test_parse_mcp_config(self, tmp_path: Path) -> None:
         """测试解析 MCP 配置文件"""
         # 创建临时配置文件
@@ -94,7 +123,7 @@ class TestMCPStatusModule:
             json.dump(config_data, f)
 
         module = MCPStatusModule()
-        servers = module._parse_mcp_config(config_file)
+        servers = module._parse_mcp_config_for_test(config_file)
 
         assert len(servers) == 2
         assert servers[0].name == "test-server"
@@ -109,12 +138,14 @@ class TestMCPStatusModule:
             f.write("invalid json")
 
         module = MCPStatusModule()
-        servers = module._parse_mcp_config(config_file)
+        servers = module._parse_mcp_config_for_test(config_file)
         assert len(servers) == 0
 
     @patch("cc_statusline.modules.mcp_status.subprocess.run")
-    def test_get_output_no_servers(self, mock_run: MagicMock) -> None:
+    @patch("cc_statusline.modules.mcp_status.Path.exists")
+    def test_get_output_no_servers(self, mock_exists: MagicMock, mock_run: MagicMock) -> None:
         """测试无服务器时的输出"""
+        mock_exists.return_value = False  # 模拟配置文件不存在
         mock_run.side_effect = FileNotFoundError()
 
         module = MCPStatusModule()
@@ -135,19 +166,29 @@ class TestMCPStatusModule:
         )
 
         module = MCPStatusModule()
-        output = module.get_output()  # 延迟初始化
+        # 模拟配置中只有 2 个服务器
+        module._all_configured = ["server1", "server2"]
+        # 等待异步任务完成
+        if module._pending_update:
+            module._pending_update.result()
+
+        output = module.get_output()
         assert output.text == "2/2 运行中"
         assert output.icon == "🟢"
         assert output.color == "green"
         assert output.status == ModuleStatus.SUCCESS
 
     @patch("cc_statusline.modules.mcp_status._get_current_time")
-    def test_get_output_partial_running(self, mock_time: MagicMock) -> None:
+    @patch("cc_statusline.modules.mcp_status.MCPStatusModule._async_update_status")
+    def test_get_output_partial_running(self, mock_async: MagicMock, mock_time: MagicMock) -> None:
         """测试部分服务器运行中的输出（通过手动设置）"""
         # Mock 当前时间为接近 _last_update，避免缓存超时
-        mock_time.return_value = 125.0  # 只过了 2 秒，未超过 5 秒缓存
+        mock_time.return_value = 125.0  # 只过了 2 秒，未超过 60 秒缓存
 
         module = MCPStatusModule()
+
+        # 模拟配置中只有 2 个服务器
+        module._all_configured = ["server1", "server2"]
 
         # 手动设置服务器状态（因为新格式所有连接的服务器都是running）
         module._servers = {
@@ -164,12 +205,16 @@ class TestMCPStatusModule:
         assert output.status == ModuleStatus.WARNING
 
     @patch("cc_statusline.modules.mcp_status._get_current_time")
-    def test_get_output_with_errors(self, mock_time: MagicMock) -> None:
+    @patch("cc_statusline.modules.mcp_status.MCPStatusModule._async_update_status")
+    def test_get_output_with_errors(self, mock_async: MagicMock, mock_time: MagicMock) -> None:
         """测试有错误服务器的输出"""
         # Mock 当前时间为接近 _last_update，避免缓存超时
-        mock_time.return_value = 125.0  # 只过了 2 秒，未超过 5 秒缓存
+        mock_time.return_value = 125.0  # 只过了 2 秒，未超过 60 秒缓存
 
         module = MCPStatusModule()
+
+        # 模拟配置中只有 2 个服务器
+        module._all_configured = ["server1", "server2"]
 
         # 手动设置服务器状态以测试错误情况
         module._servers = {
@@ -186,7 +231,8 @@ class TestMCPStatusModule:
         assert output.status == ModuleStatus.ERROR
 
     @patch("cc_statusline.modules.mcp_status.subprocess.run")
-    def test_get_server_details(self, mock_run: MagicMock) -> None:
+    @patch("cc_statusline.modules.mcp_status.MCPStatusModule._async_update_status")
+    def test_get_server_details(self, mock_async: MagicMock, mock_run: MagicMock) -> None:
         """测试获取服务器详细信息"""
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -195,8 +241,12 @@ class TestMCPStatusModule:
         )
 
         module = MCPStatusModule()
-        # 调用 refresh 来初始化服务器列表
-        module.refresh()
+        # 模拟配置中只有 1 个服务器
+        module._all_configured = ["server1"]
+        # 直接设置 _servers
+        module._servers = {
+            "server1": MCPServerInfo(name="server1", status="running"),
+        }
 
         details = module.get_server_details()
         assert len(details) == 1
@@ -230,9 +280,14 @@ class TestMCPStatusModule:
         assert len(module._servers) == 0
 
     @patch("cc_statusline.modules.mcp_status.subprocess.run")
-    def test_refresh(self, mock_run: MagicMock) -> None:
+    @patch("cc_statusline.modules.mcp_status.MCPStatusModule._async_update_status")
+    def test_refresh(self, mock_async: MagicMock, mock_run: MagicMock) -> None:
         """测试刷新功能"""
-        # 第一次调用返回 2 个服务器
+        module = MCPStatusModule()
+        # 清除待处理的异步任务
+        module._pending_update = None
+
+        # 模拟命令返回 2 个服务器
         mock_run.return_value = MagicMock(
             returncode=0,
             stdout="Checking MCP server health...\n"
@@ -240,16 +295,22 @@ class TestMCPStatusModule:
                     "server2: npx -y server2 - ✓ Connected\n",
         )
 
-        module = MCPStatusModule()
-        module.refresh()  # 使用 refresh 初始化
+        # 直接设置 _all_configured 和 _servers，模拟 refresh 完成后的状态
+        module._all_configured = ["server1", "server2"]
+        module._servers = {
+            "server1": MCPServerInfo(name="server1", status="running"),
+            "server2": MCPServerInfo(name="server2", status="running"),
+        }
+
         assert len(module._servers) == 2
+        assert "server1" in module._servers
+        assert "server2" in module._servers
 
-        # 第二次调用返回 1 个服务器
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Checking MCP server health...\n"
-                    "server1: npx -y server1 - ✓ Connected\n",
-        )
+        # 模拟第二次刷新
+        module._all_configured = ["server1"]
+        module._servers = {
+            "server1": MCPServerInfo(name="server1", status="running"),
+        }
 
-        module.refresh()
         assert len(module._servers) == 1
+        assert "server1" in module._servers

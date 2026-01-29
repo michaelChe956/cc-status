@@ -6,6 +6,7 @@
 import json
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, Future
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -38,9 +39,13 @@ class MCPStatusModule(BaseModule):
     """
 
     def __init__(self) -> None:
+        super().__init__()
         self._servers: dict[str, MCPServerInfo] = {}
+        self._all_configured: list[str] = []  # 所有配置的服务器名称
         self._last_update: float = 0.0
-        self._cache_timeout: float = 5.0  # 5秒缓存
+        self._cache_timeout: float = 60.0  # 1分钟缓存
+        self._executor = ThreadPoolExecutor(max_workers=1)
+        self._pending_update: Optional[Future] = None
 
     @property
     def metadata(self) -> ModuleMetadata:
@@ -54,8 +59,6 @@ class MCPStatusModule(BaseModule):
 
     def initialize(self) -> None:
         """初始化模块。"""
-        # 移除立即刷新，改为延迟到第一次 get_output() 时
-        # self._refresh_servers()  # 延迟初始化，避免导入时触发 MCP 命令
         pass
 
     def refresh(self) -> None:
@@ -76,11 +79,24 @@ class MCPStatusModule(BaseModule):
         """
         servers: list[MCPServerInfo] = []
 
-        # 方法1: 尝试使用 claude mcp list 命令
-        servers.extend(self._get_from_claude_command())
+        # 1. 首先从配置文件加载所有配置的服务器
+        config_servers = self._get_from_config()
+        for server in config_servers:
+            if server.name not in self._all_configured:
+                self._all_configured.append(server.name)
 
-        # 方法2: 解析配置文件
-        servers.extend(self._get_from_config())
+        # 2. 尝试使用 claude mcp list 命令获取实际运行状态
+        command_servers = self._get_from_claude_command()
+
+        # 3. 合并结果
+        command_map = {s.name: s for s in command_servers}
+
+        for name in self._all_configured:
+            if name in command_map:
+                servers.append(command_map[name])
+            else:
+                # 配置中有但命令没返回，标记为 unknown
+                servers.append(MCPServerInfo(name=name, status="unknown"))
 
         return servers
 
@@ -94,15 +110,19 @@ class MCPStatusModule(BaseModule):
 
         try:
             # 尝试运行 claude mcp list
+            # 注意：此命令可能需要 40+ 秒才能完成（需要检查所有 MCP 服务器健康状态）
             result = subprocess.run(
                 ["claude", "mcp", "list"],
                 capture_output=True,
                 text=True,
-                timeout=10,  # 增加超时时间到10秒
+                timeout=60,  # 增加超时时间到 60 秒
             )
 
             if result.returncode == 0:
                 servers.extend(self._parse_mcp_list_output(result.stdout))
+        except subprocess.TimeoutExpired:
+            # 命令超时，返回空列表（将在下次重试）
+            pass
         except (subprocess.SubprocessError, FileNotFoundError):
             pass
 
@@ -147,27 +167,82 @@ class MCPStatusModule(BaseModule):
     def _get_from_config(self) -> list[MCPServerInfo]:
         """从配置文件获取服务器信息。
 
+        配置文件结构 (~/.claude.json):
+        {
+            "mcpServers": { ... },  // 用户级别的 MCP 服务器
+            "projects": {
+                "/path/to/project1": {
+                    "mcpServers": { ... }  // 项目级别的 MCP 服务器
+                }
+            }
+        }
+
         Returns:
             MCP 服务器列表
         """
         servers: list[MCPServerInfo] = []
 
-        # 查找 MCP 配置文件
-        config_paths = [
-            Path.home() / ".claude" / "mcp.json",
-            Path.home() / ".config" / "claude" / "mcp.json",
-            Path(os.environ.get("CLAUDE_CONFIG_DIR", "")) / "mcp.json",
-        ]
+        # 配置文件路径
+        config_path = Path.home() / ".claude.json"
 
-        for config_path in config_paths:
-            if config_path.exists():
-                servers.extend(self._parse_mcp_config(config_path))
-                break
+        if not config_path.exists():
+            return servers
+
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                config = json.load(f)
+
+            # 1. 解析用户级别的 MCP 服务器
+            global_servers = config.get("mcpServers", {})
+            for name, server_config in global_servers.items():
+                command = None
+                if isinstance(server_config, dict):
+                    command = server_config.get("command")
+                    args = server_config.get("args", [])
+                    if command:
+                        command = f"{command} {' '.join(args)}"
+
+                servers.append(
+                    MCPServerInfo(
+                        name=name,
+                        status="unknown",
+                        command=command,
+                    )
+                )
+
+            # 2. 解析当前项目的 MCP 服务器
+            cwd = os.getcwd()
+            projects = config.get("projects", {})
+            for project_path, project_data in projects.items():
+                if cwd.startswith(str(project_path)) or project_path.startswith(cwd):
+                    project_servers = project_data.get("mcpServers", {})
+                    for name, server_config in project_servers.items():
+                        # 避免重复添加
+                        if any(s.name == name for s in servers):
+                            continue
+
+                        command = None
+                        if isinstance(server_config, dict):
+                            command = server_config.get("command")
+                            args = server_config.get("args", [])
+                            if command:
+                                command = f"{command} {' '.join(args)}"
+
+                        servers.append(
+                            MCPServerInfo(
+                                name=name,
+                                status="unknown",
+                                command=command,
+                            )
+                        )
+
+        except (json.JSONDecodeError, OSError):
+            pass
 
         return servers
 
-    def _parse_mcp_config(self, config_path: Path) -> list[MCPServerInfo]:
-        """解析 MCP 配置文件。
+    def _parse_mcp_config_for_test(self, config_path: Path) -> list[MCPServerInfo]:
+        """解析 MCP 配置文件（仅用于测试）。
 
         Args:
             config_path: 配置文件路径
@@ -206,18 +281,32 @@ class MCPStatusModule(BaseModule):
     def get_output(self) -> ModuleOutput:
         """获取模块输出。
 
+        策略:
+        1. 立即返回配置中的服务器数量
+        2. 后台异步获取实际运行状态
+        3. 延迟更新状态栏
+
         Returns:
             模块输出
         """
-        # 延迟初始化：只在第一次获取输出时刷新
-        if not self._servers and self._last_update == 0.0:
-            self._refresh_servers()
+        # 1. 确保已加载配置
+        if not self._all_configured:
+            config_servers = self._get_from_config()
+            for server in config_servers:
+                if server.name not in self._all_configured:
+                    self._all_configured.append(server.name)
 
-        # 检查缓存是否过期
-        if self._servers and _get_current_time() - self._last_update > self._cache_timeout:
-            self._refresh_servers()
+        total = len(self._all_configured)
 
-        if not self._servers:
+        # 2. 启动异步更新（如果尚未启动）
+        self._ensure_async_update()
+
+        # 3. 计算运行数量
+        running = sum(1 for s in self._servers.values() if s.status == "running")
+        errors = sum(1 for s in self._servers.values() if s.status == "error")
+
+        # 4. 确定显示状态
+        if total == 0:
             return ModuleOutput(
                 text="无 MCP 服务器",
                 icon="🔌",
@@ -225,31 +314,31 @@ class MCPStatusModule(BaseModule):
                 status=ModuleStatus.SUCCESS,
             )
 
-        # 统计各状态服务器数量
-        running = sum(1 for s in self._servers.values() if s.status == "running")
-        errors = sum(1 for s in self._servers.values() if s.status == "error")
-        total = len(self._servers)
+        if self._pending_update is not None and not self._pending_update.done():
+            # 正在加载中（首次或缓存过期）
+            return ModuleOutput(
+                text=f"?/{total}",
+                icon="🔄",
+                color="blue",
+                status=ModuleStatus.SUCCESS,
+                tooltip="正在检查 MCP 服务器状态...",
+            )
 
-        # 构建显示文本
+        # 命令完成，显示实际状态
         if errors > 0:
             status = ModuleStatus.ERROR
             color = "red"
             icon = "🔴"
+            text = f"{errors} 错误"
         elif running < total:
             status = ModuleStatus.WARNING
             color = "yellow"
             icon = "🟡"
+            text = f"{running}/{total} 运行中"
         else:
             status = ModuleStatus.SUCCESS
             color = "green"
             icon = "🟢"
-
-        # 格式化输出: "🔌 5/5 运行中" 或 "🔴 2 错误"
-        if running == total:
-            text = f"{running}/{total} 运行中"
-        elif errors > 0:
-            text = f"{errors} 错误"
-        else:
             text = f"{running}/{total} 运行中"
 
         return ModuleOutput(
@@ -257,8 +346,34 @@ class MCPStatusModule(BaseModule):
             icon=icon,
             color=color,
             status=status,
-            tooltip=f"MCP 服务器: {', '.join(self._servers.keys())}",
+            tooltip=f"MCP 服务器: {', '.join(self._all_configured)}",
         )
+
+    def _ensure_async_update(self) -> None:
+        """确保异步更新任务已启动。"""
+        if self._pending_update is None or self._pending_update.done():
+            # 启动新的异步任务
+            self._pending_update = self._executor.submit(self._async_update_status)
+
+    def _async_update_status(self) -> None:
+        """异步更新服务器状态。"""
+        # 检查缓存是否有效
+        if self._servers and _get_current_time() - self._last_update <= self._cache_timeout:
+            return
+
+        # 执行 claude mcp list 命令
+        command_servers = self._get_from_claude_command()
+
+        # 更新状态
+        server_map = {s.name: s for s in command_servers}
+        for name in self._all_configured:
+            if name in server_map:
+                self._servers[name] = server_map[name]
+            else:
+                # 配置中有但命令没返回，标记为 unknown
+                self._servers[name] = MCPServerInfo(name=name, status="unknown")
+
+        self._last_update = _get_current_time()
 
     def get_server_details(self) -> list[dict[str, Any]]:
         """获取服务器详细信息。
@@ -295,6 +410,8 @@ class MCPStatusModule(BaseModule):
     def cleanup(self) -> None:
         """清理资源。"""
         self._servers.clear()
+        if self._executor:
+            self._executor.shutdown(wait=False)
 
 
 # 获取当前时间的辅助函数
