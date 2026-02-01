@@ -1,4 +1,4 @@
-# cc-statusline
+# cc-status
 
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -25,7 +25,7 @@ Claude Code 状态栏功能模块 - 为 Claude Code 提供高效的状态栏显�
 
 ```bash
 # 一键安装到 Claude Code
-uvx cc-statusline install
+uvx cc-status install
 
 # 重启 Claude Code 即可看到状态栏
 claude
@@ -35,10 +35,10 @@ claude
 
 ```bash
 # 安装包
-pip install cc-statusline
+pip install cc-status
 
 # 安装到 Claude Code
-cc-statusline install
+cc-status install
 
 # 重启 Claude Code
 claude
@@ -48,8 +48,8 @@ claude
 
 ```bash
 # 克隆仓库
-git clone https://github.com/michaelche/cc-statusline.git
-cd cc-statusline
+git clone https://github.com/michaelche/cc-status.git
+cd cc-status
 
 # 安装 uv（如未安装）
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -60,7 +60,7 @@ source .venv/bin/activate  # macOS/Linux
 uv pip install -e ".[dev]"
 
 # 安装到 Claude Code
-python -m cc_statusline install
+python -m cc_status install
 
 # 重启 Claude Code
 claude
@@ -72,35 +72,35 @@ claude
 
 ```bash
 # 安装并自动配置
-uvx cc-statusline install
+uvx cc-status install
 
 # 自定义主题和刷新间隔
-uvx cc-statusline install --theme modern --interval 5000
+uvx cc-status install --theme modern --interval 5000
 
 # 验证配置
-uvx cc-statusline verify
+uvx cc-status verify
 
 # 卸载
-uvx cc-statusline uninstall
+uvx cc-status uninstall
 ```
 
 ### 命令行用法
 
 ```bash
 # 运行 CLI
-python -m cc_statusline
+python -m cc_status
 
 # 或使用安装的命令
-cc-statusline
+cc-status
 ```
 
 ### 开发示例
 
 ```python
-import cc_statusline
+import cc_status
 
 # 查看版本信息
-print(cc_statusline.__version__)
+print(cc_status.__version__)
 ```
 
 更多示例请查看 [examples/](examples/) 目录。
@@ -111,8 +111,8 @@ print(cc_statusline.__version__)
 
 ```bash
 # 1. 克隆并进入项目
-git clone https://github.com/michaelche/cc-statusline.git
-cd cc-statusline
+git clone https://github.com/michaelche/cc-status.git
+cd cc-status
 
 # 2. 安装 uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -133,7 +133,7 @@ uv pip install -e ".[dev]"
 pytest
 
 # 带覆盖率报告
-pytest --cov=cc_statusline
+pytest --cov=cc_status
 ```
 
 ### 代码质量检查
@@ -189,8 +189,8 @@ mypy src/
 
 ## 📮 联系方式
 
-- 项目主页: [https://github.com/michaelche/cc-statusline](https://github.com/michaelche/cc-statusline)
-- 问题反馈: [GitHub Issues](https://github.com/michaelche/cc-statusline/issues)
+- 项目主页: [https://github.com/michaelche/cc-status](https://github.com/michaelche/cc-status)
+- 问题反馈: [GitHub Issues](https://github.com/michaelche/cc-status/issues)
 
 ---
 

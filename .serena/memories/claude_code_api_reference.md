@@ -53,7 +53,7 @@ Claude Code v1.0+ (2026-02-01 验证)
 
 ### cost 对象
 
-| 字段 | 类型 | cc-statusline 使用 | 说明 |
+| 字段 | 类型 | cc-status 使用 | 说明 |
 |------|------|-------------------|------|
 | `total_cost_usd` | number | ✅ cost_session, cost_today, burn_rate | 累计总费用（美元） |
 | `total_duration_ms` | number | ✅ session_time, burn_rate | 会话总时长（毫秒） |
@@ -63,7 +63,7 @@ Claude Code v1.0+ (2026-02-01 验证)
 
 ### context_window 对象
 
-| 字段 | 类型 | cc-statusline 使用 | 说明 |
+| 字段 | 类型 | cc-status 使用 | 说明 |
 |------|------|-------------------|------|
 | `total_input_tokens` | number | ❌ 未使用 | 累计输入 token 数 |
 | `total_output_tokens` | number | ❌ 未使用 | 累计输出 token 数 |
@@ -74,14 +74,14 @@ Claude Code v1.0+ (2026-02-01 验证)
 
 ### model 对象
 
-| 字段 | 类型 | cc-statusline 使用 | 说明 |
+| 字段 | 类型 | cc-status 使用 | 说明 |
 |------|------|-------------------|------|
 | `id` | string | ✅ model | 模型 ID（claude-opus-4-1） |
 | `display_name` | string | ✅ model | 模型显示名称（Opus） |
 
 ### 其他字段
 
-| 字段 | 类型 | cc-statusline 使用 | 说明 |
+| 字段 | 类型 | cc-status 使用 | 说明 |
 |------|------|-------------------|------|
 | `hook_event_name` | string | ❌ | 事件名称（固定 "Status"） |
 | `session_id` | string | ❌ | 会话 ID |

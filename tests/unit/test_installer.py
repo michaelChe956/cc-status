@@ -66,11 +66,11 @@ class TestClaudeConfigInstaller:
         # 模拟 uvx 可用
         mock_run.side_effect = [
             MagicMock(returncode=0),  # uvx --version
-            MagicMock(returncode=0),  # uvx cc-statusline --version
+            MagicMock(returncode=0),  # uvx cc-status --version
         ]
 
         command = ClaudeConfigInstaller.detect_command()
-        assert command == "uvx cc-statusline"
+        assert command == "uvx cc-status"
 
     @patch("subprocess.run")
     def test_detect_command_global(self, mock_run):
@@ -78,11 +78,11 @@ class TestClaudeConfigInstaller:
         # 模拟 uvx 不可用，全局命令可用
         mock_run.side_effect = [
             MagicMock(returncode=1),  # uvx --version 失败
-            MagicMock(returncode=0),  # cc-statusline --version
+            MagicMock(returncode=0),  # cc-status --version
         ]
 
         command = ClaudeConfigInstaller.detect_command()
-        assert command == "cc-statusline"
+        assert command == "cc-status"
 
     @patch("subprocess.run")
     def test_detect_command_python(self, mock_run):
@@ -90,7 +90,7 @@ class TestClaudeConfigInstaller:
         # 模拟前两个都不可用
         mock_run.side_effect = [
             MagicMock(returncode=1),  # uvx --version 失败
-            MagicMock(returncode=1),  # cc-statusline --version 失败
+            MagicMock(returncode=1),  # cc-status --version 失败
             MagicMock(returncode=0),  # python -m cc_status --version
         ]
 
@@ -103,7 +103,7 @@ class TestClaudeConfigInstaller:
         # 所有命令都失败
         mock_run.side_effect = [
             MagicMock(returncode=1),  # uvx
-            MagicMock(returncode=1),  # cc-statusline
+            MagicMock(returncode=1),  # cc-status
             MagicMock(returncode=1),  # python -m
         ]
 
@@ -124,7 +124,7 @@ class TestClaudeConfigInstaller:
     def test_install_success(self, mock_backup, mock_detect, tmp_path):
         """测试成功安装配置"""
         config_path = tmp_path / "settings.json"
-        mock_detect.return_value = "uvx cc-statusline"
+        mock_detect.return_value = "uvx cc-status"
         mock_backup.return_value = tmp_path / "backup"
 
         with patch.object(ClaudeConfigInstaller, "CONFIG_PATH", config_path):
@@ -136,7 +136,7 @@ class TestClaudeConfigInstaller:
             config = json.loads(config_path.read_text())
             assert "statusLine" in config
             assert config["statusLine"]["type"] == "command"
-            assert "uvx cc-statusline" in config["statusLine"]["command"]
+            assert "uvx cc-status" in config["statusLine"]["command"]
             assert config["statusLine"]["refreshInterval"] == 5000
 
     @patch.object(ClaudeConfigInstaller, "detect_command")
@@ -147,7 +147,7 @@ class TestClaudeConfigInstaller:
         existing_config = {"statusLine": {"type": "command"}}
         config_path.write_text(json.dumps(existing_config))
 
-        mock_detect.return_value = "uvx cc-statusline"
+        mock_detect.return_value = "uvx cc-status"
 
         with patch.object(ClaudeConfigInstaller, "CONFIG_PATH", config_path):
             success = ClaudeConfigInstaller.install(force=False)
@@ -189,7 +189,7 @@ class TestClaudeConfigInstaller:
         config = {
             "statusLine": {
                 "type": "command",
-                "command": "uvx cc-statusline --once",
+                "command": "uvx cc-status --once",
                 "refreshInterval": 10000,
             }
         }

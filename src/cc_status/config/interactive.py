@@ -24,7 +24,7 @@ class InteractiveInstaller:
             是否安装成功
         """
         print("━" * 60)
-        print("🎨 cc-statusline 交互式安��向导")
+        print("🎨 cc-status 交互式安装向导")
         print("━" * 60)
         print()
 
@@ -69,7 +69,7 @@ class InteractiveInstaller:
             print("\n✅ 安装完成！")
             print("\n下一步:")
             print("  1. 重启 Claude Code 以应用更改")
-            print("  2. 使用 'cc-statusline verify --health' 验证配置")
+            print("  2. 使用 'cc-status verify --health' 验证配置")
 
         return success
 

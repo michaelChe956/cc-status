@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "=== cc-statusline 初始化验证 ==="
+echo "=== cc-status 初始化验证 ==="
 echo ""
 
 # 1. 检查目录结构
-if [ -d "src/cc_statusline" ]; then
+if [ -d "src/cc_status" ]; then
     echo "✅ 目录结构正确"
 else
     echo "❌ 目录结构错误"
@@ -31,7 +31,7 @@ else
 fi
 
 # 4. 检查包导入
-VERSION=$(python -c "import cc_statusline; print(cc_statusline.__version__)" 2>/dev/null)
+VERSION=$(python -c "import cc_status; print(cc_status.__version__)" 2>/dev/null)
 if [ "$VERSION" = "0.1.0" ]; then
     echo "✅ 包可导入（版本：$VERSION）"
 else

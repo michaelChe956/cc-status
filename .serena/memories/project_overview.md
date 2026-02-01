@@ -1,6 +1,6 @@
-# cc-statusline 项目概述
+# cc-status 项目概述
 
-**项目名称**: cc-statusline
+**项目名称**: cc-status
 **许可证**: Apache License 2.0
 **语言**: Python 3.9+ (推荐 3.11)
 **包管理器**: uv
@@ -16,8 +16,8 @@ Claude Code 状态栏功能相关的仓库，提供可配置的状态栏显示�
 ## 📁 项目结构 (Src Layout)
 
 ```
-cc-statusline/
-├── src/cc_statusline/           # 源代码
+cc-status/
+├── src/cc_status/           # 源代码
 │   ├── __init__.py              # 版本信息和包级导出
 │   ├── __main__.py              # CLI 入口点
 │   ├── core/                    # 核心业务逻辑
@@ -123,7 +123,7 @@ mypy src/
 pytest
 
 # 带覆盖率测试
-pytest --cov=cc_statusline --cov-report=html
+pytest --cov=cc_status --cov-report=html
 ```
 
 ---

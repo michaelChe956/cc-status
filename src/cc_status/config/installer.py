@@ -1,6 +1,6 @@
 """Claude Code 配置安装器
 
-自动配置 ~/.claude/settings.json 以启用 cc-statusline 状态栏
+自动配置 ~/.claude/settings.json 以启用 cc-status 状态栏
 """
 
 import json
@@ -37,11 +37,11 @@ class ClaudeConfigInstaller:
         # 检测最佳命令路径
         command = cls.detect_command()
         if not command:
-            print("❌ 错误: 无法检测到 cc-statusline 命令")
-            print("请确保已安装 cc-statusline:")
-            print("  pip install cc-statusline")
+            print("❌ 错误: 无法检测到 cc-status 命令")
+            print("请确保已安装 cc-status:")
+            print("  pip install cc-status")
             print("  或")
-            print("  uvx cc-statusline install")
+            print("  uvx cc-status install")
             return False
 
         # 读取现有配置
@@ -125,7 +125,7 @@ class ClaudeConfigInstaller:
             配置是否有效
         """
         if verbose:
-            print("🔍 开始验证 cc-statusline 配置...")
+            print("🔍 开始验证 cc-status 配置...")
             print("━" * 50)
 
         # 1. 配置文件存在性检查
@@ -176,7 +176,7 @@ class ClaudeConfigInstaller:
 
         # 6. 命令路径有效性
         command = statusline["command"]
-        if "cc-statusline" not in command:
+        if "cc-status" not in command:
             print(f"⚠️  命令可能不正确: {command}")
             if not verbose:
                 return False
@@ -242,7 +242,7 @@ class ClaudeConfigInstaller:
             # 4. 命令路径有效性
             command = config["statusLine"].get("command", "")
             report["details"]["command"] = command
-            report["command_found"] = "cc-statusline" in command
+            report["command_found"] = "cc-status" in command
 
             # 5. 命令可执行性测试
             if report["command_found"]:
@@ -278,7 +278,7 @@ class ClaudeConfigInstaller:
             return False
 
         # 提取基础命令 (去除参数)
-        base_cmd = command.split()[0:2]  # 例如: ["uvx", "cc-statusline"]
+        base_cmd = command.split()[0:2]  # 例如: ["uvx", "cc-status"]
 
         try:
             result = subprocess.run(
@@ -293,11 +293,11 @@ class ClaudeConfigInstaller:
 
     @classmethod
     def detect_command(cls) -> Optional[str]:
-        """检测可用的 cc-statusline 命令路径
+        """检测可用的 cc-status 命令路径
 
         优先级:
-        1. uvx cc-statusline (推荐)
-        2. 全局安装的 cc-statusline
+        1. uvx cc-status (推荐)
+        2. 全局安装的 cc-status
         3. 本地虚拟环境中的 python -m cc_status
 
         Returns:
@@ -313,26 +313,26 @@ class ClaudeConfigInstaller:
                 timeout=2,
             )
             if result.returncode == 0:
-                # 验证 uvx cc-statusline 可用
+                # 验证 uvx cc-status 可用
                 result = subprocess.run(
-                    ["uvx", "cc-statusline", "--version"],
+                    ["uvx", "cc-status", "--version"],
                     capture_output=True,
                     timeout=5,
                 )
                 if result.returncode == 0:
-                    return "uvx cc-statusline"
+                    return "uvx cc-status"
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
 
         # 2. 尝试全局安装
         try:
             result = subprocess.run(
-                ["cc-statusline", "--version"],
+                ["cc-status", "--version"],
                 capture_output=True,
                 timeout=2,
             )
             if result.returncode == 0:
-                return "cc-statusline"
+                return "cc-status"
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
 

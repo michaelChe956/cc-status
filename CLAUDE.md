@@ -310,7 +310,7 @@ mcp__time__convert_time(
 
 ## 项目概述
 
-**cc-statusline** - Claude Code 状态栏功能相关的仓库
+**cc-status** - Claude Code 状态栏功能相关的仓库
 
 **当前状态**: ✅ 项目已完成初始化，基础架构就绪
 
@@ -334,7 +334,7 @@ mcp__time__convert_time(
 建议的标准目录结构：
 
 ```
-cc-statusline/
+cc-status/
 ├── src/              # 源代码目录
 ├── tests/            # 测试文件目录
 ├── docs/             # 文档目录
@@ -390,8 +390,8 @@ cc-statusline/
 ### 项目结构
 
 ```
-cc-statusline/
-├── src/cc_statusline/      # 源代码（Src Layout）
+cc-status/
+├── src/cc_status/      # 源代码（Src Layout）
 │   ├── __init__.py         # 包初始化和版本信息
 │   ├── __main__.py         # CLI 入口点
 │   ├── core/               # 核心业务逻辑
@@ -519,13 +519,13 @@ pytest -k "status"
 
 ```bash
 # 带覆盖率报告
-pytest --cov=cc_statusline
+pytest --cov=cc_status
 
 # 生成 HTML 报告
-pytest --cov=cc_statusline --cov-report=html
+pytest --cov=cc_status --cov-report=html
 
 # 查看缺失行
-pytest --cov=cc_statusline --cov-report=term-missing
+pytest --cov=cc_status --cov-report=term-missing
 ```
 
 ### 其他测试选项
@@ -545,33 +545,33 @@ pytest -n auto
 
 ```bash
 # 运行模块
-python -m cc_statusline
+python -m cc_status
 
 # 或使用安装的命令
-cc-statusline
+cc-status
 
 # 显示版本
-python -c "import cc_statusline; print(cc_statusline.__version__)"
+python -c "import cc_status; print(cc_status.__version__)"
 ```
 
 ## 代码架构说明
 
 ### 模块划分
 
-1. **cc_statusline（根包）**
+1. **cc_status（根包）**
    - 提供版本信息和包级导出
    - `__version__`、`__author__`、`__license__` 等元数据
 
-2. **cc_statusline.core（核心模块）**
+2. **cc_status.core（核心模块）**
    - `status.py`：状态管理核心逻辑（待实现）
    - `formatter.py`：格式化输出工具（待实现）
    - 职责：业务逻辑和数据处理
 
-3. **cc_statusline.config（配置模块）**
+3. **cc_status.config（配置模块）**
    - `settings.py`：配置加载和管理（待实现）
    - 职责：配置文件读取、环境变量处理
 
-4. **cc_statusline.cli（命令行接口）**
+4. **cc_status.cli（命令行接口）**
    - `commands.py`：CLI 命令实现（待实现）
    - 职责：用户交互和命令调度
 
@@ -717,7 +717,7 @@ uv pip install -e .
 echo $PYTHONPATH
 
 # 验证包可导入
-python -c "import cc_statusline; print(cc_statusline.__version__)"
+python -c "import cc_status; print(cc_status.__version__)"
 ```
 
 ### 测试失败

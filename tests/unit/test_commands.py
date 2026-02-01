@@ -15,7 +15,7 @@ class TestCreateParser:
         """测试创建解析器"""
         parser = commands.create_parser()
         assert isinstance(parser, argparse.ArgumentParser)
-        assert parser.prog == "cc-statusline"
+        assert parser.prog == "cc-status"
 
     def test_parse_version(self) -> None:
         """测试解析版本参数"""

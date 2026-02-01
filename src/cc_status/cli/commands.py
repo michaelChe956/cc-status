@@ -1,6 +1,6 @@
 """命令行接口。
 
-提供 cc-statusline 的 CLI 命令。
+提供 cc-status 的 CLI 命令。
 """
 
 import argparse
@@ -17,19 +17,19 @@ def create_parser() -> argparse.ArgumentParser:
         解析器实例
     """
     parser = argparse.ArgumentParser(
-        prog="cc-statusline",
+        prog="cc-status",
         description="Claude Code 状态栏工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  cc-statusline              # 启动状态栏
-  cc-statusline --theme modern  # 使用指定主题
-  cc-statusline --list-modules  # 列出可用模块
-  cc-statusline --list-themes   # 列出可用主题
-  cc-statusline --once          # 单次输出
+  cc-status              # 启动状态栏
+  cc-status --theme modern  # 使用指定主题
+  cc-status --list-modules  # 列出可用模块
+  cc-status --list-themes   # 列出可用主题
+  cc-status --once          # 单次输出
 
-  cc-statusline install      # 安装到 Claude Code
-  cc-statusline uninstall    # 从 Claude Code 卸载
+  cc-status install      # 安装到 Claude Code
+  cc-status uninstall    # 从 Claude Code 卸载
         """,
     )
 
@@ -316,7 +316,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
         if args.health:
             report = ClaudeConfigInstaller.health_check()
 
-            print("🔍 cc-statusline 健康检查报告")
+            print("🔍 cc-status 健康检查报告")
             print("━" * 50)
 
             # 配置文件
@@ -588,7 +588,7 @@ def cmd_status(args: argparse.Namespace) -> None:
         engine.initialize()
         engine.start()
 
-        print("🔍 cc-statusline 调试信息")
+        print("🔍 cc-status 调试信息")
         print("━" * 50)
         print(f"预设: {args.preset}")
         print(f"主题: {args.theme}")

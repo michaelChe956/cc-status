@@ -1,5 +1,5 @@
 #!/bin/bash
-# cc-statusline 发布脚本
+# cc-status 发布脚本
 # 用途：自动构建并上传到 PyPI
 
 set -e  # 遇到错误立即退出
@@ -31,7 +31,7 @@ print_error() {
 # 显示帮助信息
 show_help() {
     cat << EOF
-${BLUE}cc-statusline 发布脚本${NC}
+${BLUE}cc-status 发布脚本${NC}
 
 用法:
     $0 [选项]
@@ -210,15 +210,15 @@ if [ $? -eq 0 ]; then
     print_info "包链接："
     if [ "$REPOSITORY" = "testpypi" ]; then
         VERSION=$(grep "^version = " pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-        echo "  https://test.pypi.org/project/cc-statusline/$VERSION/"
+        echo "  https://test.pypi.org/project/cc-status/$VERSION/"
         echo ""
         print_info "验证安装命令："
-        echo "  uvx --extra-index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match cc-statusline --version"
+        echo "  uvx --extra-index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match cc-status --version"
     else
-        echo "  https://pypi.org/project/cc-statusline/"
+        echo "  https://pypi.org/project/cc-status/"
         echo ""
         print_info "验证安装命令："
-        echo "  uvx cc-statusline --version"
+        echo "  uvx cc-status --version"
     fi
 else
     print_error "上传失败"
