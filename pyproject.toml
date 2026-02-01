@@ -1,6 +1,6 @@
 [project]
-name = "cc-statusline"
-version = "0.0.2"
+name = "cc-status"
+version = "0.0.3"
 description = "Claude Code 状态栏功能模块"
 authors = [
     {name = "Michael Che", email = "michaelche@example.com"}
